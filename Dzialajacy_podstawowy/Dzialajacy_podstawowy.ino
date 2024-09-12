@@ -1,5 +1,5 @@
 #include <Arduino.h>
-//Lukasz
+
 // The dialling pulse
 const unsigned char pinPulse = 2;
 
