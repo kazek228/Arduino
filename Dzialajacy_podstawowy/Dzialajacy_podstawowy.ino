@@ -19,7 +19,6 @@ void isr() {
 		// Are we dialling?
 		if (digitalRead(pinDialling) == LOW) {
 			pulseCnt++;
-			Serial.println(pulseCnt);
 		}
 	}
 	lastMillis = millis();
@@ -62,6 +61,18 @@ void loop() {
 
 			// What was the number we dialled?
 			if (finalNumber != "") {
+				switch (finalNumber.toInt()){
+					case 997:
+					Serial.print("Dzwonię na policję.... ");
+					break;
+					case 28082011:
+					Serial.print("Sto lat Zuziu!!.... ");
+					break;
+					default:
+					Serial.print("Nieznany numer, próbuj jeszcze raz.");
+					break;
+          
+				}
 				Serial.print("You entered ");
 				Serial.println(finalNumber);
 				finalNumber = "";
