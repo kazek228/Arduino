@@ -13,15 +13,11 @@ volatile int pulseCnt = 0;
 // INTERRUPT     INTERRUPT     INTERRUPT     INTERRUPT     INTERRUPT
 // ------------------------------------------------------------------
 void isr() {
-
-	static unsigned long lastMillis = millis();
-	if (millis() > lastMillis + 50) {
-		// Are we dialling?
+	Serial.print("Wchodze w irs");
 		if (digitalRead(pinDialling) == LOW) {
 			pulseCnt++;
+			Serial.print(pulseCnt);
 		}
-	}
-	lastMillis = millis();
 }
 
 // ------------------------------------------------------------------
@@ -57,7 +53,7 @@ void loop() {
 	if (digitalRead(pinDialling) == HIGH) {
 
 		// Has dialling completed totally?
-		if (millis() > lastMillis + 2000) {
+		if (millis() > lastMillis + 200) {
 
 			// What was the number we dialled?
 			if (finalNumber != "") {
