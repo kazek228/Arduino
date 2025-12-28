@@ -9,28 +9,34 @@ int counter = 0;
 int lastCounterState = HIGH; 
 bool isSessionActive = false; 
 
+// Zmienne do budowania długiego ciągu cyfr
+String digitSequence = "";        // Ciąg tekstowy przechowujący cyfry
+unsigned long lastSessionEnd = 0; 
+bool waitingForNextDigit = false; 
+const unsigned long timeout = 2000; 
+
 void setup() {
   pinMode(counterPin, INPUT_PULLUP);
   pinMode(controlPin, INPUT_PULLUP);
   Serial.begin(9600);
-  dySerial.begin(9600);    // Komunikacja z DY-SV5W
-
-
-  delay(1000); // Daj czas modułowi na zastartowanie
-
+  dySerial.begin(9600);  
+  delay(1000); 
+  Serial.println("System gotowy. Wpisuj kolejne cyfry...");
 }
 
 void loop() {
   int controlState = digitalRead(controlPin);
 
+  // 1. START SESJI WPISYWANIA KOLEJNEJ CYFRY
   if (controlState == LOW && !isSessionActive) {
     isSessionActive = true;
-    counter = 0; // Resetujemy licznik na początku nowej sesji
+    waitingForNextDigit = false; 
+    counter = 0; 
   }
 
+  // 2. ZLICZANIE IMPULSÓW
   if (isSessionActive) {
     int currentCounterState = digitalRead(counterPin);
-    
     if (lastCounterState == HIGH && currentCounterState == LOW) {
       counter++;
       delay(50); 
@@ -38,98 +44,74 @@ void loop() {
     lastCounterState = currentCounterState;
   }
 
+  // 3. ZAKOŃCZENIE WPISYWANIA CYFRY - DODANIE DO CIĄGU
   if (controlState == HIGH && isSessionActive) {
     isSessionActive = false;
+    
+    // Twoja korekta (zlicza HIGH na LOW)
     counter--;
     if(counter == 10) counter = 0;
-    if(counter >=0 && counter<=10){
-      switch(counter){
 
-      case 0: 
-      Serial.print("counter = 0");
-      break;
-
-      case 1:
-      Serial.print("Counter = 1");
-      playTrack(counter);
-      break;
-
-      case 2:
-      Serial.print("Counter = 2");
-      playTrack(counter);
-      break;
-
-      case 3:
-      Serial.print("Counter = 3");
-      playTrack(counter);
-      break;
-
-      case 4:
-      Serial.print("Counter = 4");
-      playTrack(counter);
-      break;
-
-      case 5:
-      Serial.print("Counter = 5");
-      playTrack(counter);
-      break;
-
-      case 6:
-      Serial.print("Counter = 6");
-      playTrack(counter);
-      break;
-
-      case 7:
-      Serial.print("Counter = 7");
-      playTrack(counter);
-      break;
-
-      case 8:
-      Serial.print("Counter = 8");
-      playTrack(counter);
-      break;
-
-      case 9:
-      Serial.print("Counter = 9");
-      playTrack(counter);
-      break;
-
-      default:
-      Serial.print("Wrong number");
-
-  }
+    // Przyjmuj tylko cyfry 0-9
+    if (counter >= 0 && counter <= 9) {
+      digitSequence += String(counter); // Dodaj cyfrę na koniec ciągu (tekstowo)
+      
+      Serial.print("Dodano cyfre: ");
+      Serial.print(counter);
+      Serial.print(" | Aktualny ciag: ");
+      Serial.println(digitSequence);
+      
+      lastSessionEnd = millis(); 
+      waitingForNextDigit = true;
     }
-  
-  
-
-  
-    counter = 0; 
+    
     lastCounterState = HIGH; 
+  }
+
+  // 4. TIMEOUT - KONIEC BUDOWANIA CIĄGU I ODTWARZANIE
+  if (waitingForNextDigit && (millis() - lastSessionEnd >= timeout)) {
+    waitingForNextDigit = false;
+
+    if (digitSequence.length() > 0) {
+      // Zamiana ciągu tekstowego na liczbę typu long
+      // Uwaga: Funkcja toInt() obsługuje liczby do ok. 2 miliardów (long)
+      long trackToPlay = digitSequence.toInt(); 
+
+      Serial.print("--- KONIEC CZASU. Finalna liczba: ");
+      Serial.println(trackToPlay);
+
+      if (trackToPlay > 0) {
+        switch(trackToPlay){
+          case 2823451: 
+            playTrack(12);
+            Serial.print("Bajka");
+            break;
+        }
+        //playTrack(trackToPlay);
+      }
+    }
+
+    digitSequence = ""; // Reset ciągu dla nowej liczby
   }
 }
 
-void playTrack(int trackNumber) {
-  byte highByte = highByte(trackNumber);
-  byte lowByte = lowByte(trackNumber);
+void playTrack(long trackNumber) {
+  // Rozbicie liczby long na bajty dla komendy UART
+  byte highB = (trackNumber >> 8) & 0xFF;
+  byte lowB = trackNumber & 0xFF;
   
-  // Budowanie ramki danych
   byte command[6];
-  command[0] = 0xAA; // Nagłówek
-  command[1] = 0x07; // Instrukcja: Odtwarzaj konkretny numer
-  command[2] = 0x02; // Długość danych (2 bajty numeru utworu)
-  command[3] = highByte;
-  command[4] = lowByte;
+  command[0] = 0xAA; 
+  command[1] = 0x07; 
+  command[2] = 0x02; 
+  command[3] = highB;
+  command[4] = lowB;
   
-  // Obliczanie sumy kontrolnej (ostatni bajt)
   byte checksum = 0;
   for (int i = 0; i < 5; i++) {
     checksum += command[i];
   }
   command[5] = checksum;
 
-  // Wysyłanie do modułu
   dySerial.write(command, 6);
-  
-  Serial.print("Wyslano komende PLAY dla utworu nr: ");
-  Serial.println(trackNumber);
 }
